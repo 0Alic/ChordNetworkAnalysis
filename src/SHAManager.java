@@ -1,6 +1,9 @@
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+/*
+ * Manager for the SHA1 algorithm
+ * */
 public class SHAManager {
 
 	private MessageDigest md;
@@ -13,6 +16,9 @@ public class SHAManager {
 		} catch (NoSuchAlgorithmException e) {e.printStackTrace();}
 	}
 	
+	/*
+	 * Get the hexadecimal SHA1 String
+	 * */
 	public String getSHA(String s) {
 		
 		md.update(s.getBytes());

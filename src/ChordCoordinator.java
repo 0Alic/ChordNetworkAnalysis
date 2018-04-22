@@ -1,9 +1,10 @@
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeMap;
 
 /*
@@ -12,20 +13,10 @@ import java.util.TreeMap;
  * This class has the complete view of all the peers in the network and so it manages the network creation,
  * the finger tables creation and performs all the queries.
  * 
- * Since the number of peers in the network may reach an high number I used a TreeMap in order to store them.
- * TreeMap class stores its values sorted by the -key- of the map: this simplifies the creation of the 
- * finger tables, even though the insertion and lookup of an element will take O(log(n)) instead of the
- * usual O(1) of HashMaps. 
- * But since I need the keys sorted TreeMap avoids me to make a full copy of the identifiers into a different
- * data structure, sort it and use the copy to create the finger tables. As I said, since the number of peers may
- * be high, make a copy of all the peers may exceed the memory.
- * 
- * 
  * */
 public class ChordCoordinator {
 
 	private static ChordCoordinator instance = null;
-	private static final int nW = 4;
 	
 	// Chord's
 	private static int bits;
@@ -40,7 +31,7 @@ public class ChordCoordinator {
 
 	// Helpers
 	private Random rnd;
-	private boolean networkInitialized = false;
+	private boolean networkInitialized;
 
 	
 	/********************************************/
@@ -58,11 +49,13 @@ public class ChordCoordinator {
 		}
 		if((b % 4) != 0) {
 			int bb = b + (4 - (b % 4));
+			System.out.println("WARNING: b should be a multiple of 4; " + b + " changed to " + bb);
 			b = bb;
 		}
 		
 		
 		bits = b;
+		this.networkInitialized = false;
 		this.nodes = new TreeMap<BigInteger, Node>();
 		this.rnd = new Random();
 		this.maxId = new BigInteger("2").pow(bits);
@@ -92,27 +85,26 @@ public class ChordCoordinator {
 	public void genNetwork(int n, String logId) {
 
 		// Input error handling
-		if(n <= 0) {
-			throw new RuntimeException("Negative number of peers input");
-		}
 		if(new BigInteger(""+n).compareTo(maxId) > 0) {
 			throw new RuntimeException("Too many nodes inserted");
 		}
+
+		System.out.println("Generating Chord-like network with an identifiers space spanned by " + bits + " bits and involving " + n + " peers");
 
 		// Helper variables
 			// Counter
 		int i = 0;
 		
 		// Reset current data
-		nodes.clear();	
+		nodes.clear();
 		topologyLogger = new Logger("topology"+logId);
 		cytoCsv = new CSVLogger(logId);
 
-		System.out.println("Creating nodes...");
 		//
 		// Generate the peers
 		//
-		
+		System.out.println("Creating nodes...");
+
 		while(i < n) {
 			// Generate node
 			BigInteger peerCode = genPeerCode();
@@ -129,39 +121,35 @@ public class ChordCoordinator {
 		//
 		System.out.println("Creating fingers...");
 		
-		// Multi-threaded finger table creation
-		ArrayList<Worker> workers = new ArrayList<Worker>();
-		ArrayList<BigInteger> peerList = new ArrayList<BigInteger>(nodes.keySet());
-		int offset = (int) Math.ceil((double) peerList.size() / (double) nW);
-		
-		for(int t=0; t<nW; t++) {
-			// Split the key set for each worker
-			int first = t*offset;
-			int last = (t+1)*offset;
-			if(last > peerList.size())
-				last = peerList.size();
+		for(BigInteger peerId : nodes.keySet()) {
+			// Build finger tables			
+			Node node = nodes.get(peerId);
+			BigInteger maxId = new BigInteger("2").pow(bits);
+
+			// A set is used in order to have no duplicates while preserving insertion order
+			Set<BigInteger> fingerTable = new LinkedHashSet<BigInteger>(); 
 			
-			List<BigInteger> portion = peerList.subList(first, last);
-			workers.add(new Worker(nodes, portion, this, bits));
-			workers.get(t).start(); // start thread
-			
-			first = last;
-		}
-		
-		for(int t=0; t<nW; t++) {
-			// Wait for the threads and get the finger tables in the csv file
-			try { 
-				workers.get(t).join();
-				cytoCsv.writeAll(workers.get(t).getFingerLines());
+			for(int k=0; k<bits; k++) {
+				// Build finger table for node node
+				BigInteger target = new BigInteger("2").pow(k).add(peerId).mod(maxId);
+				BigInteger finger = findFinger(target);
+				
+				boolean inserted = fingerTable.add(finger);
+				
+				// Write peer-finger in file for CytoScape
+				if(inserted) {
+					String[] line = {""+peerId, ""+finger};
+					cytoCsv.writeLine(line);
 				}
-			catch (InterruptedException e) { e.printStackTrace(); }
+			}
+			node.setFingerTable(new ArrayList<BigInteger>(fingerTable));
 		}
-		
 		
 		//
 		// Set all the node's predecessors
 		//
 		System.out.println("Setting predecessor of each node");
+		
 		for(BigInteger peer : nodes.keySet()) {
 			// I am the predecessor of my successor
 			Node node = nodes.get(peer);
@@ -185,12 +173,14 @@ public class ChordCoordinator {
 	
 
 	/*
-	 * Simulate a query for a random key by each node in the network
+	 * Simulate a query for a random key for each node in the network
 	 * 
 	 * logId: the log file suffix
-	 * simTimes: the number of queries issued by each node
+	 * nQueries: the number of queries issued by each node
+	 * 
+	 * return: a bundle of simulation results
 	 * */
-	public SimulationResults simulate(String logId, int simTimes) {
+	public SimulationResults simulate(String logId, int nQueries) {
 
 		// Check whether the network is initialized or not
 		if(!networkInitialized) {
@@ -204,18 +194,19 @@ public class ChordCoordinator {
 		Map<Integer, Integer> hopsMap = new HashMap<Integer, Integer>();
 		Map<Integer, Integer> queryMap = new HashMap<Integer, Integer>();	
 
-		simulationLogger = new Logger("simulation"+logId);
+		simulationLogger = new Logger("simulation"+ nQueries + "q_"+logId);
 
 		
 		//
 		// Perform simulation
 		// For each peer generate a key and query it
 		//
-			// Helper variables to store hop count and history
+			// Helper variables to store hop count and hop history
 		int hops = 0;
 		ArrayList<String> hopNodes = new ArrayList<String>();
 
-		for(int i=0; i<simTimes; i++) {
+		for(int i=0; i<nQueries; i++) {
+			// each node performs nQueries queries
 			for(BigInteger peer : nodes.keySet()) {
 				// peer performs the query
 				
@@ -263,7 +254,7 @@ public class ChordCoordinator {
 		}
 		
 		// Compute average hops
-		double avgHops = ((double) totalHops) / ((double) nodes.size()*simTimes);
+		double avgHops = ((double) totalHops) / ((double) nodes.size()*nQueries);
 
 		// Return the result bundle
 		return new SimulationResults(avgHops, hopsMap, queryMap);
@@ -277,7 +268,8 @@ public class ChordCoordinator {
 	/*
 	 * Generate the code for a peer in the network
 	 * Truncate the SHA1 hexadecimal code in case bits are < 160
-	 * This still ensure uniformity
+	 * 
+	 * return: a random peer identifier
 	 * */
 	private BigInteger genPeerCode() {
 		
@@ -293,8 +285,10 @@ public class ChordCoordinator {
 	 * Given a target find the first clockwise finger node
 	 * 
 	 * target: the target identifier
+	 * 
+	 * return: the finger of that target
 	 * */
-	public BigInteger findFinger(BigInteger target) {
+	private BigInteger findFinger(BigInteger target) {
 		
 		BigInteger first = null;
 		boolean isFirst = false;
@@ -331,6 +325,5 @@ public class ChordCoordinator {
 			map.put(key, 1);
 		else
 			map.put(key, map.get(key)+1);
-
 	}
 }

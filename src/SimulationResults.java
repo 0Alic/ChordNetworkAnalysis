@@ -1,5 +1,9 @@
 import java.util.Map;
 
+/*
+ * Bundle class to group together some results produced by the query simulation
+ * 
+ * */
 public class SimulationResults {
 
 	private double avgHops;

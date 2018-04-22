@@ -1,8 +1,10 @@
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
+/*
+ * Class which describes the node of a Chord network
+ * */
 public class Node {
 
 	private static BigInteger maxValue;
@@ -34,7 +36,7 @@ public class Node {
 		return this.fingers;
 	}
 
-	public void setFingerTable(Set<BigInteger> table) {		
+	public void setFingerTable(List<BigInteger> table) {		
 
 		this.fingers = new ArrayList<BigInteger>(table);
 		this.successor = fingers.get(0);
@@ -86,6 +88,14 @@ public class Node {
 	/*				Chord's Methods				*/
 	/********************************************/
 
+	
+	/*
+	 * Find the successor of a chord target
+	 * 
+	 * target: the target node
+	 * 
+	 * return: the successor of the target
+	 * */
 	public BigInteger findSuccessor(BigInteger target) {
 
 		if(checkInterval(target, this.predecessor, this.nodeId))
@@ -96,11 +106,18 @@ public class Node {
 			return this.successor;
 		else
 			// Forward query
-			return closestPreceedingNode(target);
+			return closestPrecedingNode(target);
 	}
 	
 	
-	private BigInteger closestPreceedingNode(BigInteger target) {
+	/*
+	 * Find the closest preceding node of target
+	 * 
+	 * target: the target node
+	 * 
+	 * return: the successor of the target
+	 * */
+	private BigInteger closestPrecedingNode(BigInteger target) {
 				
 		for(int i=fingers.size()-1; i>=0; i--) {
 			
@@ -153,17 +170,19 @@ public class Node {
 		return false;
 	}
 	
+	
 	/*
 	 * Check interval, deal with the Chord's ring property
 	 * (interval open left, closed right)
-	 * 
+	 * If el does not initially belong to the interval, try to "unfold" the ring by adding the maxId value and check again 
+	 *
 	 * el in (first, last] iff
 	 * 
 	 * el in (first, last] with first < last
 	 * or
 	 * el in (first, last+maxId] with first > last
 	 * or
-	 * el+maxId in (first, last+maxId]
+	 * el+maxId in (first, last+maxId] with first > last
 	 * */
 	private boolean checkInterval(BigInteger el, BigInteger first, BigInteger last) {
 		
@@ -180,22 +199,4 @@ public class Node {
 		
 		return false;
 	}
-	
-	
-	
-	/********************************************/
-	/*			Print/Debug Methods				*/
-	/********************************************/
-
-	public void printInfo() {
-
-		System.out.println("Node " + nodeId);
-		System.out.println("\tPredecessor");
-		System.out.println("\t"+predecessor);
-		System.out.println("\tSuccessor");
-		System.out.println("\t"+successor);		
-		System.out.println("\tFingers");
-		System.out.println("\t"+fingers);
-	}
-
 }

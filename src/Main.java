@@ -3,6 +3,17 @@ import java.util.Map;
 public class Main {
 
 	public static void main(String[] args) {
+		/*
+		 * Arguments:
+		 * 		b 	 := bits for the identifier space
+		 * 		n 	 := number of peers in the network
+		 * 		q=1 := (optional) query per node, default = 1 
+		 *
+		 * Read the arguments
+		 * Generate a Chord like network
+		 * Start the simulation
+		 * Log the distributions
+		 * */
 		
 		if(args.length < 2)
 			throw new RuntimeException("Too few input arguments: -b -n -times=1");
@@ -11,14 +22,16 @@ public class Main {
 		int n = Integer.parseInt(args[1]);
 		int queries = 1;
 		
-		if(args.length >= 3) 
+		if(args.length == 3) 
 			queries = Integer.parseInt(args[2]);
+		
+		b = 8;
+		n = 222;
+		queries = 2;
 		
 		ChordCoordinator chord = ChordCoordinator.getInstance(b);
 		String logId = b + "b_" + n + "n";
-
 		
-		System.out.println("Generating Chord-like network with an identifiers space spanned by " + b + " bits and involving " + n + " peers");
 		chord.genNetwork(n, logId);
 		
 		System.out.println("Starting simulation");
@@ -26,8 +39,7 @@ public class Main {
 		
 		System.out.println(resultBundle.getAvgHops());
 		
-		
-		// Logging Distribtions
+		// Logging Distributions
 		log(resultBundle.getHopDistribution(), b, n, queries, "Queries");
 		log(resultBundle.getQueryDistribution(), b, n, queries, "Hops");
 
@@ -37,6 +49,12 @@ public class Main {
 	
 	/*
 	 * Helper method to log the distributions in a csv file
+	 * 
+	 * distributionMap 	= the map from take the arguments
+	 * b 				= bits
+	 * n				= nodes
+	 * queryPerNode		= number of queries per node
+	 * measure			= String for the file name
 	 * */
 	public static void log(Map<Integer, Integer> distributionMap, int b, int n, int queryPerNode, String measure) {
 
