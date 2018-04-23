@@ -7,7 +7,7 @@ public class Main {
 		 * Arguments:
 		 * 		b 	 := bits for the identifier space
 		 * 		n 	 := number of peers in the network
-		 * 		q=1 := (optional) query per node, default = 1 
+		 * 		q=1  := (optional) query per node, default = 1 
 		 *
 		 * Read the arguments
 		 * Generate a Chord like network
@@ -25,10 +25,7 @@ public class Main {
 		if(args.length == 3) 
 			queries = Integer.parseInt(args[2]);
 		
-		b = 8;
-		n = 222;
-		queries = 2;
-		
+
 		ChordCoordinator chord = ChordCoordinator.getInstance(b);
 		String logId = b + "b_" + n + "n";
 		
@@ -40,8 +37,8 @@ public class Main {
 		System.out.println(resultBundle.getAvgHops());
 		
 		// Logging Distributions
-		log(resultBundle.getHopDistribution(), b, n, queries, "Queries");
-		log(resultBundle.getQueryDistribution(), b, n, queries, "Hops");
+		log(resultBundle.getHopDistribution(), b, n, queries, "Hops");
+		log(resultBundle.getQueryDistribution(), b, n, queries, "Queries");
 
 		System.out.println("Done");
 	}
@@ -58,7 +55,7 @@ public class Main {
 	 * */
 	public static void log(Map<Integer, Integer> distributionMap, int b, int n, int queryPerNode, String measure) {
 
-		CSVLogger queryOcc = new CSVLogger("Occ/b"+b+"_n"+n+"_q"+ +queryPerNode+ "_" + measure + "_queries_distribution");
+		CSVLogger queryOcc = new CSVLogger("Occ/b"+b+"_n"+n+"_q"+ +queryPerNode+ "_" + measure + "_distribution");
 		String[] headerOcc = {measure, "Occ"};
 		
 		queryOcc.writeLine(headerOcc);

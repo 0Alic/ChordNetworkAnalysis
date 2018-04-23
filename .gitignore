@@ -10,7 +10,7 @@
 Plots/
 ChordNetworkAnalysis/
 Cytothingies
-Consegna
+ConsegnaLisi
 
 # Log file
 **.log
@@ -19,6 +19,7 @@ Consegna
 
 # Cytoscape
 **.cys
+**.zip
 
 # BlueJ files
 *.ctxt

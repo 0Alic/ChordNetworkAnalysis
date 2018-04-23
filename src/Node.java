@@ -130,7 +130,7 @@ public class Node {
 			// or
 			// finger[i] in (myId, targetId+maxId) if target > myId
 			// or
-			// finger[i]+maxId in (myId, targetId+maxId)
+			// finger[i]+maxId in (myId, targetId+maxId) if target > myId
 			if(isIn(f, this.nodeId, target))
 				return f;
 			
